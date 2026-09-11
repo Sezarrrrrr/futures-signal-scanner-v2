@@ -15,6 +15,7 @@ const appState = {
     symbols: [],
     tickers: new Map(),
     signals: [],
+    selectedSignal: null,
     ws: null,
     lastStatus: 'Sistem başlatıldı.'
 };
@@ -684,76 +685,84 @@ function renderSignals() {
         empty.style.display = 'none';
     }
 
-    visibleSignals.forEach(signal => {
-        const card = document.createElement('div');
+   visibleSignals.forEach(signal => {
+    const card = document.createElement('div');
 
-        const sideClass =
-            signal.side === 'LONG' ? 'long' : 'short';
+    const sideClass =
+        signal.side === 'LONG' ? 'long' : 'short';
 
-        const scoreClass =
-            signal.score >= 75
-                ? 'high'
-                : signal.score >= 62
-                    ? 'medium'
-                    : 'low';
+    const scoreClass =
+        signal.score >= 75
+            ? 'high'
+            : signal.score >= 62
+                ? 'medium'
+                : 'low';
 
-        const changeSign =
-            signal.change24h >= 0 ? '+' : '';
+    const changeSign =
+        signal.change24h >= 0 ? '+' : '';
 
-        card.className = `signal-card ${sideClass}`;
+    card.className = `signal-card ${sideClass}`;
 
-        card.innerHTML = `
-            <div class="signal-main">
-                <div>
-                    <div class="signal-symbol">
-                        ${signal.symbol}
-                    </div>
-
-                    <div class="signal-meta">
-                        ${signal.confirmation}
-                    </div>
+    card.innerHTML = `
+        <div class="signal-main">
+            <div>
+                <div class="signal-symbol">
+                    ${signal.symbol}
                 </div>
 
-                <div class="signal-side">
-                    <div class="signal-direction ${sideClass}">
-                        ${signal.side}
-                    </div>
-
-                    <div class="signal-score ${scoreClass}">
-                        ${signal.score}/100
-                    </div>
+                <div class="signal-meta">
+                    ${signal.confirmation}
                 </div>
             </div>
 
-            <div class="signal-price-row">
-                <strong>${formatPrice(signal.price)}</strong>
-                <span class="${signal.change24h >= 0 ? 'positive' : 'negative'}">
-                    ${changeSign}${signal.change24h.toFixed(2)}%
-                </span>
-            </div>
+            <div class="signal-side">
+                <div class="signal-direction ${sideClass}">
+                    ${signal.side}
+                </div>
 
-            <div class="signal-details">
-                <span>RSI 1H: ${signal.rsi1h.toFixed(1)}</span>
-                <span>RSI 15M: ${signal.rsi15m.toFixed(1)}</span>
-                <span>RSI 5M: ${signal.rsi5m.toFixed(1)}</span>
-                <span>Hacim: ${signal.volumeRatio.toFixed(2)}x</span>
-                <span>ATR: ${signal.atrPercent.toFixed(2)}%</span>
+                <div class="signal-score ${scoreClass}">
+                    ${signal.score}/100
+                </div>
             </div>
+        </div>
 
-            <div class="signal-trends">
-                <span>5M: ${formatTrend(signal.trend5m)}</span>
-                <span>15M: ${formatTrend(signal.trend15m)}</span>
-                <span>1H: ${formatTrend(signal.trend1h)}</span>
-            </div>
+        <div class="signal-price-row">
+            <strong>${formatPrice(signal.price)}</strong>
 
-            <div class="signal-footer">
-                <span>Hacim: ${formatVolume(signal.quoteVolume)} USDT</span>
-                <span>Analiz edildi</span>
-            </div>
-        `;
+            <span class="${signal.change24h >= 0 ? 'positive' : 'negative'}">
+                ${changeSign}${signal.change24h.toFixed(2)}%
+            </span>
+        </div>
 
-        list.appendChild(card);
-    });
+        <div class="signal-details">
+            <span>RSI 1H: ${signal.rsi1h.toFixed(1)}</span>
+            <span>RSI 15M: ${signal.rsi15m.toFixed(1)}</span>
+            <span>RSI 5M: ${signal.rsi5m.toFixed(1)}</span>
+            <span>Hacim: ${signal.volumeRatio.toFixed(2)}x</span>
+            <span>ATR: ${signal.atrPercent.toFixed(2)}%</span>
+        </div>
+
+        <div class="signal-trends">
+            <span>5M: ${formatTrend(signal.trend5m)}</span>
+            <span>15M: ${formatTrend(signal.trend15m)}</span>
+            <span>1H: ${formatTrend(signal.trend1h)}</span>
+        </div>
+
+        <div class="signal-footer">
+            <span>Hacim: ${formatVolume(signal.quoteVolume)} USDT</span>
+
+            <button
+                class="plan-btn"
+                type="button"
+                data-symbol="${signal.symbol}">
+                İşlem planı
+            </button>
+        </div>
+    `;
+
+    list.appendChild(card);
+});
+   
 }
 
 function formatTrend(trend) {
@@ -985,6 +994,220 @@ function bindActions() {
     }
 }
 
+
+/* =========================================
+   AŞAMA 5 — İŞLEM PLANI
+========================================= */
+
+function calculateTradePlan(signal) {
+    if (!signal || !signal.price) {
+        return null;
+    }
+
+    const entry = Number(signal.price);
+
+    /*
+      ATR yüzdesini kullanarak volatiliteye göre
+      risk mesafesi hesaplanır.
+    */
+    const atrRisk = entry * (signal.atrPercent / 100) * 1.5;
+
+    /*
+      ATR çok küçükse stop mesafesi aşırı dar olmasın.
+    */
+    const minimumRisk = entry * 0.004;
+
+    const riskDistance = Math.max(
+        atrRisk,
+        minimumRisk
+    );
+
+    let stopLoss;
+    let tp1;
+    let tp2;
+    let tp3;
+
+    if (signal.side === 'LONG') {
+        stopLoss = entry - riskDistance;
+        tp1 = entry + riskDistance;
+        tp2 = entry + riskDistance * 2;
+        tp3 = entry + riskDistance * 3;
+    } else {
+        stopLoss = entry + riskDistance;
+        tp1 = entry - riskDistance;
+        tp2 = entry - riskDistance * 2;
+        tp3 = entry - riskDistance * 3;
+    }
+
+    let leverage = '3x';
+
+    if (signal.atrPercent <= 1.5) {
+        leverage = '5x';
+    } else if (signal.atrPercent > 3) {
+        leverage = '2x';
+    }
+
+    return {
+        symbol: signal.symbol,
+        side: signal.side,
+        score: signal.score,
+        confirmation: signal.confirmation,
+        entry,
+        stopLoss,
+        tp1,
+        tp2,
+        tp3,
+        riskDistance,
+        leverage,
+        riskReward1: 1,
+        riskReward2: 2,
+        riskReward3: 3
+    };
+}
+
+function showTradePlan(signal) {
+    const panel = $('tradePlanPanel');
+    const symbolBox = $('tradePlanSymbol');
+    const content = $('tradePlanContent');
+
+    if (!panel || !symbolBox || !content || !signal) {
+        return;
+    }
+
+    const plan = calculateTradePlan(signal);
+
+    if (!plan) {
+        return;
+    }
+
+    appState.selectedSignal = signal;
+
+    symbolBox.textContent =
+        `${plan.symbol} · ${plan.side} · ${plan.score}/100`;
+
+    content.innerHTML = `
+        <div class="trade-plan-grid">
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">Yön</div>
+                <div class="trade-plan-value info">
+                    ${plan.side}
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">Skor</div>
+                <div class="trade-plan-value info">
+                    ${plan.score}/100
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">Giriş</div>
+                <div class="trade-plan-value entry">
+                    ${formatPrice(plan.entry)}
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">Stop-Loss</div>
+                <div class="trade-plan-value stop">
+                    ${formatPrice(plan.stopLoss)}
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">TP1 · 1R</div>
+                <div class="trade-plan-value tp">
+                    ${formatPrice(plan.tp1)}
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">TP2 · 2R</div>
+                <div class="trade-plan-value tp">
+                    ${formatPrice(plan.tp2)}
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">TP3 · 3R</div>
+                <div class="trade-plan-value tp">
+                    ${formatPrice(plan.tp3)}
+                </div>
+            </div>
+
+            <div class="trade-plan-item">
+                <div class="trade-plan-label">Önerilen kaldıraç</div>
+                <div class="trade-plan-value info">
+                    ${plan.leverage}
+                </div>
+            </div>
+        </div>
+
+        <div class="trade-plan-note">
+            Teyit durumu: ${plan.confirmation}<br>
+            Risk mesafesi: ${formatPrice(plan.riskDistance)}<br>
+            Risk/Ödül: TP1 1:1 · TP2 1:2 · TP3 1:3
+        </div>
+    `;
+
+    panel.style.display = 'block';
+
+    panel.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+    });
+}
+
+function closeTradePlan() {
+    const panel = $('tradePlanPanel');
+
+    if (panel) {
+        panel.style.display = 'none';
+    }
+
+    appState.selectedSignal = null;
+}
+
+function bindTradePlanActions() {
+    const list = $('signalsList');
+    const closeButton = $('closeTradePlan');
+    const paperButton = $('paperTradeButton');
+
+    if (list) {
+        list.addEventListener('click', event => {
+            const planButton = event.target.closest('.plan-btn');
+
+            if (!planButton) {
+                return;
+            }
+
+            const symbol = planButton.dataset.symbol;
+
+            const signal = appState.signals.find(
+                item => item.symbol === symbol
+            );
+
+            if (signal) {
+                showTradePlan(signal);
+            }
+        });
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener('click', closeTradePlan);
+    }
+
+    if (paperButton) {
+        paperButton.addEventListener('click', () => {
+            alert(
+                'Paper Trading bağlantısı bir sonraki adımda etkinleştirilecek.'
+            );
+        });
+    }
+}
+
+
 /* =========================================
    BAŞLAT
 ========================================= */
@@ -994,6 +1217,7 @@ function initApp() {
     showView('markets');
     bindNavigation();
     bindActions();
+    bindTradePlanActions();
 
     setConnection('offline', 'Hazır');
     setStatus(
