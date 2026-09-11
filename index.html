@@ -506,6 +506,209 @@
 .plan-btn:hover {
     background: #1e3a5f;
 }
+        /* =========================================
+   AŞAMA 5B — PAPER TRADING STİLLERİ
+========================================= */
+
+.paper-trading-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #26364b;
+    border-radius: 16px;
+    background: #0b1523;
+}
+
+.paper-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.paper-title {
+    color: #f8fafc;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.paper-symbol {
+    margin-top: 4px;
+    color: #8da2bd;
+    font-size: 13px;
+}
+
+.paper-balance-box {
+    margin-bottom: 14px;
+    padding: 14px;
+    border: 1px solid #28415d;
+    border-radius: 12px;
+    background: #102238;
+}
+
+.paper-balance-label {
+    color: #8da2bd;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.paper-balance-value {
+    color: #4ade80;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.paper-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.paper-form-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.paper-form-item label {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.paper-form-item input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    background: #111f31;
+    color: #f8fafc;
+    padding: 10px;
+    outline: none;
+}
+
+.paper-form-item input:focus {
+    border-color: #3b82f6;
+}
+
+.paper-trade-preview {
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid #26364b;
+    border-radius: 12px;
+    background: #111f31;
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.paper-preview-title {
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 7px;
+}
+
+.paper-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid #1e293b;
+    padding: 5px 0;
+}
+
+.paper-preview-row:last-child {
+    border-bottom: 0;
+}
+
+.paper-preview-label {
+    color: #94a3b8;
+}
+
+.paper-preview-value {
+    color: #e2e8f0;
+    font-weight: 700;
+    text-align: right;
+}
+
+.paper-open-position {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    background: #111f31;
+}
+
+.paper-position-long {
+    border-color: #166534;
+}
+
+.paper-position-short {
+    border-color: #991b1b;
+}
+
+.paper-position-title {
+    color: #f8fafc;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.paper-position-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.paper-pnl-positive {
+    color: #4ade80 !important;
+    font-weight: 800;
+}
+
+.paper-pnl-negative {
+    color: #f87171 !important;
+    font-weight: 800;
+}
+
+.paper-history {
+    margin-top: 16px;
+}
+
+.paper-history-title {
+    color: #f8fafc;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.paper-history-item {
+    margin-bottom: 8px;
+    padding: 11px;
+    border: 1px solid #26364b;
+    border-radius: 10px;
+    background: #0d1726;
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.paper-history-win {
+    border-color: #166534;
+}
+
+.paper-history-loss {
+    border-color: #991b1b;
+}
+
+@media (max-width: 420px) {
+    .paper-form-grid,
+    .paper-position-details {
+        grid-template-columns: 1fr;
+    }
+}
     </style>
 </head>
 
@@ -599,6 +802,7 @@
                 </div>
 
                 <div id="signalsList"></div>
+                <div id="paperTradingStatus"></div>
             </div>
 
             <div id="tradePlanPanel" class="trade-plan-panel" style="display: none;">
@@ -607,6 +811,70 @@
             <div class="trade-plan-title">İşlem Planı</div>
             <div id="tradePlanSymbol" class="trade-plan-symbol">-</div>
         </div>
+
+        <!-- =========================================
+     AŞAMA 5B — PAPER TRADING PANELİ
+========================================= -->
+
+<div id="paperTradingPanel" class="paper-trading-panel" style="display: none;">
+
+    <div class="paper-header">
+        <div>
+            <div class="paper-title">Sanal İşlem</div>
+            <div id="paperSymbol" class="paper-symbol">-</div>
+        </div>
+
+        <button
+            id="closePaperTrading"
+            class="secondary-btn"
+            type="button">
+            Kapat
+        </button>
+    </div>
+
+    <div class="paper-balance-box">
+        <div class="paper-balance-label">Sanal bakiye</div>
+        <div id="paperBalanceValue" class="paper-balance-value">
+            1,000.00 USDT
+        </div>
+    </div>
+
+    <div class="paper-form-grid">
+
+        <div class="paper-form-item">
+            <label for="paperRiskPercent">Risk yüzdesi</label>
+            <input
+                id="paperRiskPercent"
+                type="number"
+                min="0.1"
+                max="10"
+                step="0.1"
+                value="1">
+        </div>
+
+        <div class="paper-form-item">
+            <label for="paperLeverage">Kaldıraç</label>
+            <input
+                id="paperLeverage"
+                type="number"
+                min="1"
+                max="50"
+                step="1"
+                value="3">
+        </div>
+
+    </div>
+
+    <div id="paperTradePreview" class="paper-trade-preview"></div>
+
+    <button
+        id="confirmPaperTrade"
+        class="primary-btn"
+        type="button">
+        Sanal Pozisyon Aç
+    </button>
+
+</div>
 
         <button id="closeTradePlan" class="secondary-btn" type="button">
             Kapat
