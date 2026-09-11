@@ -371,6 +371,128 @@
                 padding-left: 7px;
             }
         }
+        /* =========================================
+   AŞAMA 5 — İŞLEM PLANI
+========================================= */
+
+.trade-plan-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #26364b;
+    border-radius: 16px;
+    background: #0d1726;
+}
+
+.trade-plan-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.trade-plan-title {
+    color: #f1f5f9;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.trade-plan-symbol {
+    margin-top: 4px;
+    color: #8da2bd;
+    font-size: 13px;
+}
+
+.trade-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.trade-plan-item {
+    padding: 11px;
+    border: 1px solid #26364b;
+    border-radius: 12px;
+    background: #111f31;
+}
+
+.trade-plan-label {
+    color: #8da2bd;
+    font-size: 11px;
+    margin-bottom: 5px;
+}
+
+.trade-plan-value {
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 700;
+    word-break: break-word;
+}
+
+.trade-plan-value.entry {
+    color: #60a5fa;
+}
+
+.trade-plan-value.stop {
+    color: #f87171;
+}
+
+.trade-plan-value.tp {
+    color: #4ade80;
+}
+
+.trade-plan-value.info {
+    color: #c4b5fd;
+}
+
+.trade-plan-note {
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 12px 0;
+}
+
+.secondary-btn {
+    border: 1px solid #334155;
+    background: #172337;
+    color: #cbd5e1;
+    border-radius: 9px;
+    padding: 8px 11px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.secondary-btn:hover {
+    background: #22334b;
+}
+
+.primary-btn {
+    width: 100%;
+    border: 0;
+    border-radius: 11px;
+    padding: 12px;
+    background: #2563eb;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.primary-btn:hover {
+    background: #1d4ed8;
+}
+
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+    .trade-plan-grid {
+        grid-template-columns: 1fr;
+    }
+}
     </style>
 </head>
 
@@ -465,6 +587,25 @@
 
                 <div id="signalsList"></div>
             </div>
+
+            <div id="tradePlanPanel" class="trade-plan-panel" style="display: none;">
+    <div class="trade-plan-header">
+        <div>
+            <div class="trade-plan-title">İşlem Planı</div>
+            <div id="tradePlanSymbol" class="trade-plan-symbol">-</div>
+        </div>
+
+        <button id="closeTradePlan" class="secondary-btn" type="button">
+            Kapat
+        </button>
+    </div>
+
+    <div id="tradePlanContent"></div>
+
+    <button id="paperTradeButton" class="primary-btn" type="button">
+        Sanal İşlem Aç
+    </button>
+</div>
 
         </section>
 
