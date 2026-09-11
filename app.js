@@ -1,37 +1,31 @@
-/* =====================================================
-   FUTURES SIGNAL SCANNER V2
-   AŞAMA 2 — TEMEL UYGULAMA KONTROLÜ
-   ===================================================== */
-
 'use strict';
 
-/* =====================================================
-   UYGULAMA DURUMU
-   ===================================================== */
+/* =========================================
+   FUTURES SIGNAL SCANNER V2
+   AŞAMA 3 — BINANCE FUTURES CANLI VERİ
+========================================= */
 
 const appState = {
     currentView: 'markets',
     scanning: false,
+    connected: false,
     marketCount: 0,
     longCount: 0,
     shortCount: 0,
+    symbols: [],
+    tickers: new Map(),
     lastStatus: 'Sistem başlatıldı.'
 };
 
-/* =====================================================
-   KISA DOM YARDIMCISI
-   ===================================================== */
+const BINANCE_API = 'https://fapi.binance.com';
+
+/* ---------- Yardımcılar ---------- */
 
 function $(id) {
     return document.getElementById(id);
 }
 
-/* =====================================================
-   DURUM GÖSTERİMİ
-   ===================================================== */
-
 function setStatus(message) {
-
     appState.lastStatus = message;
 
     const statusBox = $('statusBox');
@@ -40,41 +34,35 @@ function setStatus(message) {
         statusBox.textContent = message;
     }
 
+    console.log('[Scanner]', message);
 }
 
-/* =====================================================
-   BAĞLANTI DURUMU
-   ===================================================== */
-
 function setConnection(status, text) {
-
     const dot = $('connectionDot');
-    const label = $('connectionText');
+    const connectionText = $('connectionText');
 
     if (dot) {
-        dot.classList.remove('online', 'offline');
+        dot.classList.remove('online', 'offline', 'loading');
 
         if (status === 'online') {
             dot.classList.add('online');
-        }
-
-        if (status === 'offline') {
+        } else if (status === 'loading') {
+            dot.classList.add('loading');
+        } else {
             dot.classList.add('offline');
         }
     }
 
-    if (label) {
-        label.textContent = text;
+    if (connectionText) {
+        connectionText.textContent = text;
     }
 
+    appState.connected = status === 'online';
 }
 
-/* =====================================================
-   SAYAÇLARI GÜNCELLE
-   ===================================================== */
+/* ---------- İstatistikler ---------- */
 
 function renderStats() {
-
     const marketCount = $('marketCount');
     const longCount = $('longCount');
     const shortCount = $('shortCount');
@@ -90,15 +78,11 @@ function renderStats() {
     if (shortCount) {
         shortCount.textContent = appState.shortCount;
     }
-
 }
 
-/* =====================================================
-   GÖRÜNÜM DEĞİŞTİRME
-   ===================================================== */
+/* ---------- Görünüm yönetimi ---------- */
 
 function showView(viewName) {
-
     const views = {
         markets: $('viewMarkets'),
         trade: $('viewTrade'),
@@ -106,58 +90,282 @@ function showView(viewName) {
         settings: $('viewSettings')
     };
 
-    Object.keys(views).forEach(function(key) {
-
+    Object.keys(views).forEach(key => {
         const view = views[key];
 
-        if (!view) {
+        if (view) {
+            view.classList.toggle('active', key === viewName);
+        }
+    });
+
+    document.querySelectorAll('.nav-btn').forEach(button => {
+        button.classList.toggle(
+            'active',
+            button.dataset.view === viewName
+        );
+    });
+
+    appState.currentView = viewName;
+}
+
+/* ---------- Piyasa listesini oluştur ---------- */
+
+function renderMarketList() {
+    const list = $('signalsList');
+    const empty = $('signalsEmpty');
+
+    if (!list) {
+        return;
+    }
+
+    list.innerHTML = '';
+
+    const tickerArray = Array.from(appState.tickers.values())
+        .sort((a, b) => {
+            return Math.abs(b.priceChangePercent) -
+                   Math.abs(a.priceChangePercent);
+        })
+        .slice(0, 30);
+
+    if (tickerArray.length === 0) {
+        if (empty) {
+            empty.style.display = 'block';
+            empty.textContent = 'Henüz piyasa verisi alınmadı.';
+        }
+
+        return;
+    }
+
+    if (empty) {
+        empty.style.display = 'none';
+    }
+
+    tickerArray.forEach(ticker => {
+        const card = document.createElement('div');
+        card.className = 'signal-card';
+
+        const changeClass =
+            ticker.priceChangePercent >= 0 ? 'positive' : 'negative';
+
+        const changeSign =
+            ticker.priceChangePercent >= 0 ? '+' : '';
+
+        const formattedPrice = formatPrice(ticker.lastPrice);
+
+        card.innerHTML = `
+            <div class="signal-main">
+                <div>
+                    <div class="signal-symbol">${ticker.symbol}</div>
+                    <div class="signal-meta">24 saatlik piyasa verisi</div>
+                </div>
+
+                <div class="signal-side">
+                    <div class="signal-price">${formattedPrice}</div>
+                    <div class="signal-change ${changeClass}">
+                        ${changeSign}${ticker.priceChangePercent.toFixed(2)}%
+                    </div>
+                </div>
+            </div>
+
+            <div class="signal-footer">
+                <span>Hacim: ${formatVolume(ticker.quoteVolume)}</span>
+                <span>Canlı veri</span>
+            </div>
+        `;
+
+        list.appendChild(card);
+    });
+}
+
+/* ---------- Sayısal biçimlendirme ---------- */
+
+function formatPrice(value) {
+    const price = Number(value);
+
+    if (!Number.isFinite(price)) {
+        return '-';
+    }
+
+    if (price >= 1000) {
+        return price.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    if (price >= 1) {
+        return price.toLocaleString('en-US', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        });
+    }
+
+    if (price >= 0.01) {
+        return price.toLocaleString('en-US', {
+            minimumFractionDigits: 5,
+            maximumFractionDigits: 5
+        });
+    }
+
+    return price.toLocaleString('en-US', {
+        minimumFractionDigits: 8,
+        maximumFractionDigits: 8
+    });
+}
+
+function formatVolume(value) {
+    const volume = Number(value);
+
+    if (!Number.isFinite(volume)) {
+        return '-';
+    }
+
+    if (volume >= 1000000000) {
+        return (volume / 1000000000).toFixed(2) + 'B USDT';
+    }
+
+    if (volume >= 1000000) {
+        return (volume / 1000000).toFixed(2) + 'M USDT';
+    }
+
+    if (volume >= 1000) {
+        return (volume / 1000).toFixed(2) + 'K USDT';
+    }
+
+    return volume.toFixed(2) + ' USDT';
+}
+
+/* ---------- Binance sembollerini al ---------- */
+
+async function loadExchangeInfo() {
+    const response = await fetch(
+        `${BINANCE_API}/fapi/v1/exchangeInfo`
+    );
+
+    if (!response.ok) {
+        throw new Error('Binance exchangeInfo bağlantısı başarısız.');
+    }
+
+    const data = await response.json();
+
+    appState.symbols = data.symbols
+        .filter(symbolInfo => {
+            return (
+                symbolInfo.status === 'TRADING' &&
+                symbolInfo.quoteAsset === 'USDT' &&
+                symbolInfo.contractType === 'PERPETUAL'
+            );
+        })
+        .map(symbolInfo => symbolInfo.symbol);
+
+    appState.marketCount = appState.symbols.length;
+
+    renderStats();
+
+    setStatus(
+        `${appState.marketCount} adet USDT perpetual sözleşmesi bulundu.`
+    );
+}
+
+/* ---------- Binance 24 saatlik ticker verisi ---------- */
+
+async function loadTickers() {
+    const response = await fetch(
+        `${BINANCE_API}/fapi/v1/ticker/24hr`
+    );
+
+    if (!response.ok) {
+        throw new Error('Binance ticker bağlantısı başarısız.');
+    }
+
+    const data = await response.json();
+
+    const validSymbols = new Set(appState.symbols);
+
+    data.forEach(item => {
+        if (!validSymbols.has(item.symbol)) {
             return;
         }
 
-        view.classList.toggle(
-            'active',
-            key === viewName
-        );
-
+        appState.tickers.set(item.symbol, {
+            symbol: item.symbol,
+            lastPrice: Number(item.lastPrice),
+            priceChangePercent: Number(item.priceChangePercent),
+            quoteVolume: Number(item.quoteVolume)
+        });
     });
 
-    document
-        .querySelectorAll('.nav-btn')
-        .forEach(function(button) {
+    renderMarketList();
 
-            button.classList.toggle(
-                'active',
-                button.dataset.view === viewName
-            );
-
-        });
-
-    appState.currentView = viewName;
-
+    setStatus(
+        `${appState.tickers.size} piyasanın canlı fiyat verisi alındı.`
+    );
 }
 
-/* =====================================================
-   BOŞ SİNYAL ALANI
-   ===================================================== */
+/* ---------- Binance WebSocket canlı fiyat akışı ---------- */
 
-function renderEmptySignals() {
+function connectWebSocket() {
+    const socketUrl =
+        'wss://fstream.binance.com/stream?streams=!ticker@arr';
 
-    const empty = $('signalsEmpty');
+    const ws = new WebSocket(socketUrl);
 
-    if (empty) {
-        empty.style.display = 'block';
-        empty.textContent =
-            'Henüz sinyal bulunmuyor. Tarama başlatıldığında sonuçlar burada görünecek.';
-    }
+    setConnection('loading', 'Canlı bağlantı kuruluyor...');
 
+    ws.onopen = () => {
+        setConnection('online', 'Binance canlı bağlı');
+        setStatus('Binance Futures WebSocket bağlantısı kuruldu.');
+    };
+
+    ws.onmessage = event => {
+        try {
+            const message = JSON.parse(event.data);
+            const tickerList = message.data;
+
+            if (!Array.isArray(tickerList)) {
+                return;
+            }
+
+            const validSymbols = new Set(appState.symbols);
+
+            tickerList.forEach(item => {
+                if (!validSymbols.has(item.s)) {
+                    return;
+                }
+
+                appState.tickers.set(item.s, {
+                    symbol: item.s,
+                    lastPrice: Number(item.c),
+                    priceChangePercent: Number(item.P),
+                    quoteVolume: Number(item.q)
+                });
+            });
+
+            renderMarketList();
+        } catch (error) {
+            console.error('WebSocket veri hatası:', error);
+        }
+    };
+
+    ws.onerror = error => {
+        console.error('Binance WebSocket hatası:', error);
+        setConnection('offline', 'Bağlantı hatası');
+        setStatus('Canlı bağlantıda hata oluştu.');
+    };
+
+    ws.onclose = () => {
+        setConnection('offline', 'Bağlantı kapandı');
+        setStatus('Binance bağlantısı kapandı. Yeniden deneniyor...');
+
+        setTimeout(() => {
+            connectWebSocket();
+        }, 5000);
+    };
 }
 
-/* =====================================================
-   DEMO TARAMA
-   ===================================================== */
+/* ---------- Tarama ---------- */
 
-function runDemoScan() {
-
+async function runLiveScan() {
     if (appState.scanning) {
         return;
     }
@@ -168,155 +376,105 @@ function runDemoScan() {
 
     if (scanButton) {
         scanButton.disabled = true;
-        scanButton.textContent = 'Taranıyor...';
+        scanButton.textContent = 'Bağlanıyor...';
     }
 
-    setConnection('online', 'Demo bağlantı');
+    try {
+        setConnection('loading', 'Binance verisi alınıyor...');
+        setStatus('Binance Futures piyasaları yükleniyor...');
 
-    setStatus('Piyasa taraması başlatıldı...');
+        await loadExchangeInfo();
+        await loadTickers();
 
-    setTimeout(function() {
+        connectWebSocket();
 
-        /*
-         * Bu aşamadaki veriler yalnızca test amaçlıdır.
-         * Henüz Binance verisi kullanılmıyor.
-         */
+        setStatus(
+            `Canlı bağlantı hazır. ${appState.marketCount} piyasa izleniyor.`
+        );
+    } catch (error) {
+        console.error(error);
 
-        appState.marketCount = 0;
-        appState.longCount = 0;
-        appState.shortCount = 0;
-
-        renderStats();
-        renderEmptySignals();
-
+        setConnection('offline', 'Bağlantı başarısız');
+        setStatus(
+            'Binance verisi alınamadı. Birkaç saniye sonra tekrar deneyin.'
+        );
+    } finally {
         appState.scanning = false;
 
         if (scanButton) {
             scanButton.disabled = false;
-            scanButton.textContent = 'Taramayı başlat';
+            scanButton.textContent = 'Piyasaları Tara';
         }
-
-        setStatus(
-            'Demo tarama tamamlandı. Binance bağlantısı sonraki aşamada eklenecek.'
-        );
-
-    }, 1200);
-
+    }
 }
 
-/* =====================================================
-   TEMİZLE
-   ===================================================== */
+/* ---------- Temizle ---------- */
 
 function clearApp() {
-
+    appState.tickers.clear();
     appState.marketCount = 0;
     appState.longCount = 0;
     appState.shortCount = 0;
 
     renderStats();
-    renderEmptySignals();
 
+    const list = $('signalsList');
+    const empty = $('signalsEmpty');
+
+    if (list) {
+        list.innerHTML = '';
+    }
+
+    if (empty) {
+        empty.style.display = 'block';
+        empty.textContent = 'Henüz sinyal bulunmuyor.';
+    }
+
+    setConnection('offline', 'Bağlantı yok');
     setStatus('Ekran temizlendi.');
-
 }
 
-/* =====================================================
-   ALT MENÜ BAĞLANTILARI
-   ===================================================== */
+/* ---------- Navigasyon ---------- */
 
 function bindNavigation() {
-
-    document
-        .querySelectorAll('.nav-btn')
-        .forEach(function(button) {
-
-            button.addEventListener(
-                'click',
-                function() {
-
-                    const viewName =
-                        button.dataset.view;
-
-                    if (!viewName) {
-                        return;
-                    }
-
-                    showView(viewName);
-
-                }
-            );
-
+    document.querySelectorAll('.nav-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            showView(button.dataset.view);
         });
-
+    });
 }
 
-/* =====================================================
-   BUTON BAĞLANTILARI
-   ===================================================== */
+/* ---------- Butonlar ---------- */
 
 function bindActions() {
-
     const scanButton = $('scanButton');
     const clearButton = $('clearButton');
 
     if (scanButton) {
-        scanButton.addEventListener(
-            'click',
-            runDemoScan
-        );
+        scanButton.addEventListener('click', runLiveScan);
     }
 
     if (clearButton) {
-        clearButton.addEventListener(
-            'click',
-            clearApp
-        );
+        clearButton.addEventListener('click', clearApp);
     }
-
 }
 
-/* =====================================================
-   UYGULAMAYI BAŞLAT
-   ===================================================== */
+/* ---------- Başlat ---------- */
 
 function initApp() {
-
     renderStats();
-    renderEmptySignals();
-
     showView('markets');
-
     bindNavigation();
     bindActions();
 
-    setConnection('online', 'Hazır');
+    setConnection('offline', 'Hazır');
+    setStatus('Binance bağlantısı için "Piyasaları Tara" butonuna basın.');
 
-    setStatus(
-        'Temel uygulama hazır. Binance bağlantısı sonraki aşamada eklenecek.'
-    );
-
-    console.log(
-        'Futures Signal Scanner V2 başlatıldı.'
-    );
-
+    console.log('Futures Signal Scanner V2 — Aşama 3 hazır.');
 }
 
-/* =====================================================
-   BAŞLATMA
-   ===================================================== */
-
-if (
-    document.readyState === 'loading'
-) {
-
-    document.addEventListener(
-        'DOMContentLoaded',
-        initApp
-    );
-
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
 } else {
-
     initApp();
-
 }
