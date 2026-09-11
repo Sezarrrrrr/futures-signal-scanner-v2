@@ -18,6 +18,12 @@ const appState = {
     selectedSignal: null,
     ws: null,
     lastStatus: 'Sistem başlatıldı.'
+    paperBalance: 1000,
+    paperOpenPosition: null,
+    paperHistory: [],
+    paperPlanSignal: null,
+  
+ 
 };
 
 const BINANCE_API = 'https://fapi.binance.com';
@@ -1204,6 +1210,833 @@ function bindTradePlanActions() {
                 'Paper Trading bağlantısı bir sonraki adımda etkinleştirilecek.'
             );
         });
+    }
+}
+
+
+/* =========================================
+   AŞAMA 5B — PAPER TRADING
+========================================= */
+
+const PAPER_BALANCE_KEY = 'paperTradingBalance';
+const PAPER_POSITION_KEY = 'paperTradingOpenPosition';
+const PAPER_HISTORY_KEY = 'paperTradingHistory';
+
+function loadPaperTradingState() {
+    const savedBalance = localStorage.getItem(PAPER_BALANCE_KEY);
+    const savedPosition = localStorage.getItem(PAPER_POSITION_KEY);
+    const savedHistory = localStorage.getItem(PAPER_HISTORY_KEY);
+
+    if (savedBalance !== null) {
+        const parsedBalance = Number(savedBalance);
+
+        if (Number.isFinite(parsedBalance)) {
+            appState.paperBalance = parsedBalance;
+        }
+    }
+
+    if (savedPosition) {
+        try {
+            appState.paperOpenPosition = JSON.parse(savedPosition);
+        } catch (error) {
+            appState.paperOpenPosition = null;
+        }
+    }
+
+    if (savedHistory) {
+        try {
+            const parsedHistory = JSON.parse(savedHistory);
+
+            if (Array.isArray(parsedHistory)) {
+                appState.paperHistory = parsedHistory;
+            }
+        } catch (error) {
+            appState.paperHistory = [];
+        }
+    }
+}
+
+function savePaperTradingState() {
+    localStorage.setItem(
+        PAPER_BALANCE_KEY,
+        String(appState.paperBalance)
+    );
+
+    localStorage.setItem(
+        PAPER_POSITION_KEY,
+        JSON.stringify(appState.paperOpenPosition)
+    );
+
+    localStorage.setItem(
+        PAPER_HISTORY_KEY,
+        JSON.stringify(appState.paperHistory)
+    );
+}
+
+function formatUsdt(value) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return '0.00 USDT';
+    }
+
+    return `${number.toLocaleString('tr-TR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })} USDT`;
+}
+
+function formatPaperPrice(value) {
+    if (typeof formatPrice === 'function') {
+        return formatPrice(Number(value));
+    }
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return '-';
+    }
+
+    if (number >= 1000) {
+        return number.toFixed(2);
+    }
+
+    if (number >= 1) {
+        return number.toFixed(4);
+    }
+
+    if (number >= 0.01) {
+        return number.toFixed(6);
+    }
+
+    return number.toFixed(8);
+}
+
+function calculatePaperPositionSize(signal, riskPercent, leverage) {
+    if (!signal || !signal.price || !signal.atrPercent) {
+        return null;
+    }
+
+    const entry = Number(signal.price);
+    const balance = Number(appState.paperBalance);
+
+    const riskAmount = balance * (riskPercent / 100);
+
+    const atrRisk =
+        entry * (Number(signal.atrPercent) / 100) * 1.5;
+
+    const minimumRisk = entry * 0.004;
+
+    const riskDistance = Math.max(
+        atrRisk,
+        minimumRisk
+    );
+
+    if (
+        !Number.isFinite(entry) ||
+        !Number.isFinite(balance) ||
+        !Number.isFinite(riskAmount) ||
+        !Number.isFinite(riskDistance) ||
+        riskDistance <= 0
+    ) {
+        return null;
+    }
+
+    const quantity = riskAmount / riskDistance;
+    const notional = quantity * entry;
+    const margin = notional / leverage;
+
+    return {
+        entry,
+        riskAmount,
+        riskDistance,
+        quantity,
+        notional,
+        margin,
+        leverage
+    };
+}
+
+function getPaperFormValues() {
+    const riskInput = $('paperRiskPercent');
+    const leverageInput = $('paperLeverage');
+
+    const riskPercent = Number(
+        riskInput ? riskInput.value : 1
+    );
+
+    const leverage = Number(
+        leverageInput ? leverageInput.value : 3
+    );
+
+    return {
+        riskPercent: Math.min(
+            Math.max(riskPercent || 1, 0.1),
+            10
+        ),
+        leverage: Math.min(
+            Math.max(leverage || 3, 1),
+            50
+        )
+    };
+}
+
+function renderPaperBalance() {
+    const balanceElement = $('paperBalanceValue');
+
+    if (balanceElement) {
+        balanceElement.textContent =
+            formatUsdt(appState.paperBalance);
+    }
+}
+
+function renderPaperTradePreview() {
+    const preview = $('paperTradePreview');
+    const signal = appState.paperPlanSignal;
+
+    if (!preview || !signal) {
+        return;
+    }
+
+    const {
+        riskPercent,
+        leverage
+    } = getPaperFormValues();
+
+    const position = calculatePaperPositionSize(
+        signal,
+        riskPercent,
+        leverage
+    );
+
+    if (!position) {
+        preview.innerHTML = `
+            <div class="paper-preview-title">
+                Hesaplama yapılamadı
+            </div>
+            <div>Geçerli sinyal verisi bulunamadı.</div>
+        `;
+
+        return;
+    }
+
+    preview.innerHTML = `
+        <div class="paper-preview-title">
+            Sanal pozisyon ön izlemesi
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Yön</span>
+            <span class="paper-preview-value">
+                ${signal.side}
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Giriş</span>
+            <span class="paper-preview-value">
+                ${formatPaperPrice(position.entry)}
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Risk miktarı</span>
+            <span class="paper-preview-value">
+                ${formatUsdt(position.riskAmount)}
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Pozisyon adedi</span>
+            <span class="paper-preview-value">
+                ${position.quantity.toFixed(4)}
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Pozisyon değeri</span>
+            <span class="paper-preview-value">
+                ${formatUsdt(position.notional)}
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Kullanılan teminat</span>
+            <span class="paper-preview-value">
+                ${formatUsdt(position.margin)}
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Kaldıraç</span>
+            <span class="paper-preview-value">
+                ${leverage}x
+            </span>
+        </div>
+
+        <div class="paper-preview-row">
+            <span class="paper-preview-label">Risk yüzdesi</span>
+            <span class="paper-preview-value">
+                %${riskPercent.toFixed(1)}
+            </span>
+        </div>
+    `;
+}
+
+function showPaperTrading(signal) {
+    const panel = $('paperTradingPanel');
+    const symbolElement = $('paperSymbol');
+
+    if (!panel || !symbolElement || !signal) {
+        return;
+    }
+
+    if (appState.paperOpenPosition) {
+        alert(
+            'Önce mevcut sanal pozisyonu kapatmalısın.'
+        );
+        return;
+    }
+
+    appState.paperPlanSignal = signal;
+
+    symbolElement.textContent =
+        `${signal.symbol} · ${signal.side} · ${signal.score}/100`;
+
+    renderPaperBalance();
+    renderPaperTradePreview();
+
+    panel.style.display = 'block';
+
+    panel.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+    });
+}
+
+function closePaperTrading() {
+    const panel = $('paperTradingPanel');
+
+    if (panel) {
+        panel.style.display = 'none';
+    }
+
+    appState.paperPlanSignal = null;
+}
+
+function openPaperPosition() {
+    const signal = appState.paperPlanSignal;
+
+    if (!signal) {
+        alert('Önce bir işlem planı seçmelisin.');
+        return;
+    }
+
+    if (appState.paperOpenPosition) {
+        alert('Zaten açık bir sanal pozisyon var.');
+        return;
+    }
+
+    const {
+        riskPercent,
+        leverage
+    } = getPaperFormValues();
+
+    const position = calculatePaperPositionSize(
+        signal,
+        riskPercent,
+        leverage
+    );
+
+    if (!position) {
+        alert('Pozisyon hesaplanamadı.');
+        return;
+    }
+
+    const plan = calculateTradePlan(signal);
+
+    if (!plan) {
+        alert('İşlem planı oluşturulamadı.');
+        return;
+    }
+
+    if (position.margin > appState.paperBalance) {
+        alert(
+            'Bu işlem için gereken teminat sanal bakiyeden fazla.'
+        );
+        return;
+    }
+
+    appState.paperOpenPosition = {
+        id: Date.now(),
+        symbol: signal.symbol,
+        side: signal.side,
+        score: signal.score,
+        quantity: position.quantity,
+        entry: position.entry,
+        margin: position.margin,
+        notional: position.notional,
+        riskAmount: position.riskAmount,
+        leverage: position.leverage,
+        stopLoss: plan.stopLoss,
+        tp1: plan.tp1,
+        tp2: plan.tp2,
+        tp3: plan.tp3,
+        openedAt: new Date().toISOString()
+    };
+
+    savePaperTradingState();
+    closePaperTrading();
+
+    alert(
+        `${signal.symbol} için ${signal.side} sanal pozisyon açıldı.`
+    );
+
+    renderPaperTradingSection();
+}
+
+function getLivePriceForPosition(position) {
+    if (!position || !position.symbol) {
+        return null;
+    }
+
+    const ticker = appState.tickers &&
+        appState.tickers.get(position.symbol);
+
+    if (ticker) {
+        const possiblePrice =
+            ticker.lastPrice ||
+            ticker.price ||
+            ticker.c;
+
+        const price = Number(possiblePrice);
+
+        if (Number.isFinite(price) && price > 0) {
+            return price;
+        }
+    }
+
+    const signal = appState.signals.find(
+        item => item.symbol === position.symbol
+    );
+
+    if (signal && Number(signal.price) > 0) {
+        return Number(signal.price);
+    }
+
+    return null;
+}
+
+function calculatePaperPnl(position, currentPrice) {
+    if (!position || !currentPrice) {
+        return {
+            pnl: 0,
+            pnlPercent: 0
+        };
+    }
+
+    const priceDifference =
+        position.side === 'LONG'
+            ? currentPrice - position.entry
+            : position.entry - currentPrice;
+
+    const pnl = priceDifference * position.quantity;
+
+    const pnlPercent =
+        position.margin > 0
+            ? (pnl / position.margin) * 100
+            : 0;
+
+    return {
+        pnl,
+        pnlPercent
+    };
+}
+
+function getPaperCloseReason(position, currentPrice) {
+    if (!position || !currentPrice) {
+        return null;
+    }
+
+    if (position.side === 'LONG') {
+        if (currentPrice <= position.stopLoss) {
+            return 'Stop-Loss';
+        }
+
+        if (currentPrice >= position.tp3) {
+            return 'TP3';
+        }
+
+        if (currentPrice >= position.tp2) {
+            return 'TP2';
+        }
+
+        if (currentPrice >= position.tp1) {
+            return 'TP1';
+        }
+    }
+
+    if (position.side === 'SHORT') {
+        if (currentPrice >= position.stopLoss) {
+            return 'Stop-Loss';
+        }
+
+        if (currentPrice <= position.tp3) {
+            return 'TP3';
+        }
+
+        if (currentPrice <= position.tp2) {
+            return 'TP2';
+        }
+
+        if (currentPrice <= position.tp1) {
+            return 'TP1';
+        }
+    }
+
+    return null;
+}
+
+function closePaperPosition(reason, currentPrice) {
+    const position = appState.paperOpenPosition;
+
+    if (!position || !currentPrice) {
+        return;
+    }
+
+    const {
+        pnl,
+        pnlPercent
+    } = calculatePaperPnl(
+        position,
+        currentPrice
+    );
+
+    appState.paperBalance += pnl;
+
+    const historyItem = {
+        ...position,
+        closePrice: currentPrice,
+        pnl,
+        pnlPercent,
+        closeReason: reason,
+        closedAt: new Date().toISOString()
+    };
+
+    appState.paperHistory.unshift(historyItem);
+
+    if (appState.paperHistory.length > 50) {
+        appState.paperHistory =
+            appState.paperHistory.slice(0, 50);
+    }
+
+    appState.paperOpenPosition = null;
+
+    savePaperTradingState();
+
+    alert(
+        `${position.symbol} pozisyonu kapandı.\n` +
+        `Neden: ${reason}\n` +
+        `Sonuç: ${formatUsdt(pnl)}`
+    );
+
+    renderPaperTradingSection();
+}
+
+function checkPaperPosition() {
+    const position = appState.paperOpenPosition;
+
+    if (!position) {
+        return;
+    }
+
+    const currentPrice =
+        getLivePriceForPosition(position);
+
+    if (!currentPrice) {
+        return;
+    }
+
+    const closeReason =
+        getPaperCloseReason(position, currentPrice);
+
+    if (closeReason) {
+        closePaperPosition(
+            closeReason,
+            currentPrice
+        );
+    }
+
+    renderPaperTradingSection();
+}
+
+function renderPaperTradingSection() {
+    const container = $('paperTradingStatus');
+
+    if (!container) {
+        return;
+    }
+
+    renderPaperBalance();
+
+    const position = appState.paperOpenPosition;
+
+    let html = `
+        <div class="paper-history">
+            <div class="paper-history-title">
+                Paper Trading
+            </div>
+
+            <div class="paper-balance-box">
+                <div class="paper-balance-label">
+                    Güncel sanal bakiye
+                </div>
+
+                <div class="paper-balance-value">
+                    ${formatUsdt(appState.paperBalance)}
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (position) {
+        const currentPrice =
+            getLivePriceForPosition(position) ||
+            position.entry;
+
+        const {
+            pnl,
+            pnlPercent
+        } = calculatePaperPnl(
+            position,
+            currentPrice
+        );
+
+        const pnlClass =
+            pnl >= 0
+                ? 'paper-pnl-positive'
+                : 'paper-pnl-negative';
+
+        const sideClass =
+            position.side === 'LONG'
+                ? 'paper-position-long'
+                : 'paper-position-short';
+
+        html += `
+            <div class="paper-open-position ${sideClass}">
+                <div class="paper-position-title">
+                    Açık Pozisyon ·
+                    ${position.symbol}
+                    · ${position.side}
+                </div>
+
+                <div class="paper-position-details">
+                    <div>
+                        Giriş:
+                        <strong>
+                            ${formatPaperPrice(position.entry)}
+                        </strong>
+                    </div>
+
+                    <div>
+                        Anlık:
+                        <strong>
+                            ${formatPaperPrice(currentPrice)}
+                        </strong>
+                    </div>
+
+                    <div>
+                        Miktar:
+                        <strong>
+                            ${position.quantity.toFixed(4)}
+                        </strong>
+                    </div>
+
+                    <div>
+                        Kaldıraç:
+                        <strong>
+                            ${position.leverage}x
+                        </strong>
+                    </div>
+
+                    <div>
+                        SL:
+                        <strong>
+                            ${formatPaperPrice(position.stopLoss)}
+                        </strong>
+                    </div>
+
+                    <div>
+                        TP1:
+                        <strong>
+                            ${formatPaperPrice(position.tp1)}
+                        </strong>
+                    </div>
+
+                    <div>
+                        TP2:
+                        <strong>
+                            ${formatPaperPrice(position.tp2)}
+                        </strong>
+                    </div>
+
+                    <div>
+                        TP3:
+                        <strong>
+                            ${formatPaperPrice(position.tp3)}
+                        </strong>
+                    </div>
+
+                    <div class="${pnlClass}">
+                        PNL:
+                        ${formatUsdt(pnl)}
+                    </div>
+
+                    <div class="${pnlClass}">
+                        PNL %:
+                        ${pnlPercent.toFixed(2)}%
+                    </div>
+                </div>
+
+                <button
+                    id="manualClosePaperPosition"
+                    class="secondary-btn"
+                    type="button"
+                    style="margin-top: 12px; width: 100%;">
+                    Pozisyonu Manuel Kapat
+                </button>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="paper-trade-preview">
+                Açık sanal pozisyon bulunmuyor.
+            </div>
+        `;
+    }
+
+    if (appState.paperHistory.length > 0) {
+        html += `
+            <div class="paper-history">
+                <div class="paper-history-title">
+                    İşlem Geçmişi
+                </div>
+        `;
+
+        appState.paperHistory.forEach(item => {
+            const historyClass =
+                item.pnl >= 0
+                    ? 'paper-history-win'
+                    : 'paper-history-loss';
+
+            html += `
+                <div class="paper-history-item ${historyClass}">
+                    <strong>
+                        ${item.symbol} · ${item.side}
+                    </strong>
+                    <br>
+                    Giriş:
+                    ${formatPaperPrice(item.entry)}
+                    <br>
+                    Kapanış:
+                    ${formatPaperPrice(item.closePrice)}
+                    <br>
+                    Neden:
+                    ${item.closeReason}
+                    <br>
+                    Sonuç:
+                    <strong>
+                        ${formatUsdt(item.pnl)}
+                    </strong>
+                    (${item.pnlPercent.toFixed(2)}%)
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+    }
+
+    container.innerHTML = html;
+
+    const manualCloseButton =
+        $('manualClosePaperPosition');
+
+    if (manualCloseButton) {
+        manualCloseButton.addEventListener(
+            'click',
+            () => {
+                const currentPosition =
+                    appState.paperOpenPosition;
+
+                if (!currentPosition) {
+                    return;
+                }
+
+                const currentPrice =
+                    getLivePriceForPosition(
+                        currentPosition
+                    ) || currentPosition.entry;
+
+                closePaperPosition(
+                    'Manuel kapanış',
+                    currentPrice
+                );
+            }
+        );
+    }
+}
+
+function bindPaperTradingActions() {
+    const paperButton = $('paperTradeButton');
+    const closeButton = $('closePaperTrading');
+    const confirmButton = $('confirmPaperTrade');
+
+    const riskInput = $('paperRiskPercent');
+    const leverageInput = $('paperLeverage');
+
+    if (paperButton) {
+        paperButton.addEventListener(
+            'click',
+            () => {
+                if (appState.selectedSignal) {
+                    showPaperTrading(
+                        appState.selectedSignal
+                    );
+                } else {
+                    alert(
+                        'Önce bir işlem planı seçmelisin.'
+                    );
+                }
+            }
+        );
+    }
+
+    if (closeButton) {
+        closeButton.addEventListener(
+            'click',
+            closePaperTrading
+        );
+    }
+
+    if (confirmButton) {
+        confirmButton.addEventListener(
+            'click',
+            openPaperPosition
+        );
+    }
+
+    if (riskInput) {
+        riskInput.addEventListener(
+            'input',
+            renderPaperTradePreview
+        );
+    }
+
+    if (leverageInput) {
+        leverageInput.addEventListener(
+            'input',
+            renderPaperTradePreview
+        );
     }
 }
 
