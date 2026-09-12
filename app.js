@@ -919,6 +919,7 @@ function connectWebSocket() {
                         quoteVolume: Number(item.q)
                     });
                 });
+                       checkPaperPosition();
 
                 appState.signals.forEach(signal => {
                     const ticker = appState.tickers.get(signal.symbol);
@@ -1087,6 +1088,7 @@ function showTradePlan(signal) {
     }
 
     appState.selectedSignal = signal;
+    appState.paperPlanSignal = signal;
 
     symbolBox.textContent =
         `${plan.symbol} · ${plan.side} · ${plan.score}/100`;
@@ -2051,6 +2053,10 @@ function initApp() {
     bindNavigation();
     bindActions();
     bindTradePlanActions();
+   
+   loadPaperTradingState();
+    bindPaperTradingActions();
+    renderPaperTradingSection();
 
     setConnection('offline', 'Hazır');
     setStatus(
