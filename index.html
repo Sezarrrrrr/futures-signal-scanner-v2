@@ -760,6 +760,167 @@
                 font-size: 18px;
             }
         }
+        /* =========================================================
+   OTOMATİK TARAMA PANELİ - AŞAMA 6
+========================================================= */
+
+.auto-scan-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(100, 140, 180, 0.22);
+  border-radius: 14px;
+  background: rgba(12, 22, 36, 0.82);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #eaf2ff;
+}
+
+.panel-subtitle {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: #8ea4bd;
+}
+
+.auto-scan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.auto-scan-field {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.auto-scan-field label,
+.auto-scan-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: #8ea4bd;
+}
+
+.auto-scan-field select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(120, 160, 200, 0.25);
+  border-radius: 8px;
+  outline: none;
+  color: #eaf2ff;
+  background: #101d2d;
+  font-size: 12px;
+}
+
+.auto-scan-field strong {
+  display: block;
+  overflow: hidden;
+  color: #dbeafe;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auto-scan-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.12);
+  font-size: 11px;
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #60a5fa;
+  box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.65);
+  animation: autoScanPulse 1.4s infinite;
+}
+
+@keyframes autoScanPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.65);
+  }
+
+  70% {
+    box-shadow: 0 0 0 7px rgba(96, 165, 250, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+  }
+}
+
+/* Anahtar düğmesi */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 23px;
+  flex: 0 0 auto;
+}
+
+.switch input {
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  background: #334155;
+  transition: 0.2s;
+}
+
+.switch .slider::before {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  content: "";
+  border-radius: 50%;
+  background: #f8fafc;
+  transition: 0.2s;
+}
+
+.switch input:checked + .slider {
+  background: #2563eb;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(19px);
+}
+
+@media (max-width: 430px) {
+  .auto-scan-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auto-scan-field {
+    padding: 9px;
+  }
+}
     </style>
 </head>
 
@@ -845,6 +1006,82 @@
 
                 <div id="signalsList"></div>
             </div>
+
+            <!-- =========================================================
+     OTOMATİK TARAMA PANELİ - AŞAMA 6
+========================================================= -->
+<section id="autoScanPanel" class="panel auto-scan-panel">
+  <div class="panel-header">
+    <div>
+      <h3>Otomatik Tarama</h3>
+      <p class="panel-subtitle">
+        Sinyaller belirlenen aralıklarla otomatik yenilenir.
+      </p>
+    </div>
+
+    <label class="switch">
+      <input
+        type="checkbox"
+        id="autoScanEnabled"
+      />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="auto-scan-grid">
+    <div class="auto-scan-field">
+      <label for="autoScanInterval">
+        Tarama aralığı
+      </label>
+
+      <select id="autoScanInterval">
+        <option value="60000">1 dakika</option>
+        <option value="180000">3 dakika</option>
+        <option value="300000" selected>5 dakika</option>
+        <option value="600000">10 dakika</option>
+      </select>
+    </div>
+
+    <div class="auto-scan-field">
+      <span class="auto-scan-label">
+        Durum
+      </span>
+
+      <strong id="autoScanStatus">
+        Kapalı
+      </strong>
+    </div>
+
+    <div class="auto-scan-field">
+      <span class="auto-scan-label">
+        Son tarama
+      </span>
+
+      <strong id="lastAutoScanTime">
+        Henüz yapılmadı
+      </strong>
+    </div>
+
+    <div class="auto-scan-field">
+      <span class="auto-scan-label">
+        Sonraki tarama
+      </span>
+
+      <strong id="nextAutoScanTime">
+        -
+      </strong>
+    </div>
+  </div>
+
+  <div
+    id="autoScanProgress"
+    class="auto-scan-progress"
+    hidden
+  >
+    <span class="loading-dot"></span>
+    Piyasa yeniden taranıyor...
+  </div>
+</section>
 
             <!-- İŞLEM PLANI -->
             <div id="tradePlanPanel" class="trade-plan-panel" style="display:none;">
