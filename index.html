@@ -3,26 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Futures Signal Scanner</title>
-
     <meta name="theme-color" content="#07111f">
     <meta name="description" content="Binance Futures sinyal ve paper trading uygulaması">
-
     <link rel="manifest" href="manifest.webmanifest">
+    <title>Futures Signal Scanner V2</title>
 
     <style>
         :root {
             --bg: #07111f;
             --panel: #0d1b2d;
-            --panel-2: #12243a;
-            --border: #20364f;
+            --panel2: #12243a;
+            --border: #263c55;
             --text: #edf5ff;
             --muted: #8ea5bd;
             --blue: #3b9cff;
             --green: #19c987;
             --red: #ff5574;
             --yellow: #f4c95d;
+            --purple: #b69cff;
         }
 
         * {
@@ -40,8 +38,8 @@
             background:
                 radial-gradient(
                     circle at top right,
-                    rgba(24, 79, 130, 0.18),
-                    transparent 35%
+                    rgba(24, 79, 130, .2),
+                    transparent 36%
                 ),
                 var(--bg);
             color: var(--text);
@@ -63,10 +61,15 @@
             cursor: pointer;
         }
 
+        button:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+        }
+
         .app {
             width: min(100%, 760px);
             margin: 0 auto;
-            padding: 18px 14px 100px;
+            padding: 16px 13px 100px;
         }
 
         .header {
@@ -74,30 +77,31 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 11px;
+            gap: 10px;
+            min-width: 0;
         }
 
         .brand-icon {
-            width: 42px;
-            height: 42px;
+            width: 43px;
+            height: 43px;
+            flex: 0 0 43px;
             display: grid;
             place-items: center;
             border-radius: 13px;
             background: linear-gradient(135deg, #1769aa, #3b9cff);
             font-size: 21px;
             font-weight: 800;
-            box-shadow: 0 8px 24px rgba(0, 125, 255, 0.2);
         }
 
         .brand h1 {
             margin: 0;
-            font-size: 19px;
+            font-size: 18px;
             line-height: 1.2;
         }
 
@@ -112,7 +116,7 @@
             align-items: center;
             gap: 6px;
             color: var(--muted);
-            font-size: 11px;
+            font-size: 10px;
             white-space: nowrap;
         }
 
@@ -121,43 +125,60 @@
             height: 8px;
             border-radius: 50%;
             background: var(--yellow);
-            box-shadow: 0 0 10px rgba(244, 201, 93, 0.5);
         }
 
         .connection-dot.online {
             background: var(--green);
-            box-shadow: 0 0 10px rgba(25, 201, 135, 0.5);
+            box-shadow: 0 0 9px rgba(25, 201, 135, .6);
         }
 
         .connection-dot.offline {
             background: var(--red);
-            box-shadow: 0 0 10px rgba(255, 85, 116, 0.5);
+        }
+
+        .connection-dot.loading {
+            background: var(--yellow);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            50% {
+                opacity: .35;
+            }
+        }
+
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
         }
 
         .hero {
-            padding: 20px;
-            margin-bottom: 14px;
+            margin-bottom: 13px;
+            padding: 19px;
             border: 1px solid var(--border);
             border-radius: 20px;
             background:
                 linear-gradient(
                     135deg,
-                    rgba(24, 66, 108, 0.5),
-                    rgba(13, 27, 45, 0.95)
+                    rgba(24, 66, 108, .5),
+                    rgba(13, 27, 45, .95)
                 );
         }
 
         .hero-label {
             color: var(--blue);
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .08em;
             text-transform: uppercase;
         }
 
         .hero h2 {
             margin: 9px 0 8px;
-            font-size: 25px;
+            font-size: 24px;
             line-height: 1.2;
         }
 
@@ -171,25 +192,24 @@
         .stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 14px;
+            gap: 9px;
+            margin-bottom: 13px;
         }
 
         .stat {
-            min-width: 0;
-            padding: 15px 12px;
+            padding: 13px 10px;
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 15px;
             background: var(--panel);
         }
 
         .stat-label {
             color: var(--muted);
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .stat-value {
-            margin-top: 8px;
+            margin-top: 7px;
             font-size: 21px;
             font-weight: 800;
         }
@@ -203,8 +223,8 @@
         }
 
         .section {
-            margin-top: 14px;
-            padding: 17px;
+            margin-top: 13px;
+            padding: 16px;
             border: 1px solid var(--border);
             border-radius: 18px;
             background: var(--panel);
@@ -215,7 +235,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            margin-bottom: 14px;
+            margin-bottom: 13px;
         }
 
         .section-title h3 {
@@ -225,63 +245,460 @@
 
         .section-title span {
             color: var(--muted);
-            font-size: 11px;
+            font-size: 10px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 23px;
+            padding: 0 9px;
+            border-radius: 999px;
+            background: rgba(244, 201, 93, .12);
+            color: var(--yellow);
+            font-size: 10px;
+            font-weight: 800;
         }
 
         .empty {
-            padding: 28px 15px;
+            padding: 25px 13px;
             border: 1px dashed var(--border);
-            border-radius: 14px;
+            border-radius: 13px;
             color: var(--muted);
             text-align: center;
-            font-size: 13px;
+            font-size: 12px;
             line-height: 1.6;
         }
 
         .actions {
             display: flex;
-            gap: 9px;
             flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 13px;
         }
 
         .btn {
-            min-height: 42px;
-            padding: 0 16px;
+            min-height: 41px;
+            padding: 0 15px;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            background: var(--panel-2);
+            border-radius: 11px;
+            background: var(--panel2);
             color: var(--text);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
-        }
-
-        .btn:hover {
-            border-color: #376184;
         }
 
         .btn-primary {
             border-color: #287ac1;
             background: var(--blue);
-            color: #fff;
+            color: white;
         }
 
-        .btn-primary:hover {
-            background: #2589e8;
-        }
-
-        .btn:disabled {
-            cursor: not-allowed;
-            opacity: 0.55;
+        .btn-danger {
+            border-color: #8f2943;
+            background: rgba(255, 85, 116, .13);
+            color: #ff8da2;
         }
 
         .status-box {
+            margin-top: 12px;
+            padding: 11px;
+            border-radius: 11px;
+            background: rgba(255, 255, 255, .035);
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        #signalsList {
+            display: grid;
+            gap: 10px;
+        }
+
+        .signal-card {
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--blue);
+            border-radius: 14px;
+            background: #101f31;
+        }
+
+        .signal-card.long {
+            border-left-color: var(--green);
+        }
+
+        .signal-card.short {
+            border-left-color: var(--red);
+        }
+
+        .signal-main {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .signal-symbol {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .signal-meta {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .signal-side {
+            display: flex;
+            align-items: flex-end;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .signal-direction {
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .signal-direction.long {
+            color: var(--green);
+        }
+
+        .signal-direction.short {
+            color: var(--red);
+        }
+
+        .signal-score {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .signal-score.high {
+            color: var(--green);
+        }
+
+        .signal-score.medium {
+            color: var(--yellow);
+        }
+
+        .signal-score.low {
+            color: var(--muted);
+        }
+
+        .signal-price-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .signal-price-row strong {
+            font-size: 16px;
+        }
+
+        .positive {
+            color: var(--green);
+        }
+
+        .negative {
+            color: var(--red);
+        }
+
+        .signal-details,
+        .signal-trends {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            margin-top: 11px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .signal-trends {
+            color: #b8c8da;
+        }
+
+        .signal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
             margin-top: 13px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .plan-btn,
+        .secondary-btn {
+            border: 1px solid #3b82f6;
+            border-radius: 9px;
+            background: #172b49;
+            color: #93c5fd;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .secondary-btn {
+            border-color: #334155;
+            background: #172337;
+            color: #cbd5e1;
+        }
+
+        .trade-plan-panel,
+        .paper-trading-panel {
+            margin-top: 14px;
+            padding: 15px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: #0b1727;
+        }
+
+        .trade-plan-header,
+        .paper-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .trade-plan-title,
+        .paper-title {
+            font-size: 17px;
+            font-weight: 800;
+        }
+
+        .trade-plan-symbol,
+        .paper-symbol {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .trade-plan-grid,
+        .paper-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+            margin-bottom: 13px;
+        }
+
+        .trade-plan-item {
+            padding: 11px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: #111f31;
+        }
+
+        .trade-plan-label,
+        .paper-form-item label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 10px;
+        }
+
+        .trade-plan-value {
+            font-size: 13px;
+            font-weight: 800;
+            word-break: break-word;
+        }
+
+        .trade-plan-value.entry {
+            color: #60a5fa;
+        }
+
+        .trade-plan-value.stop {
+            color: #f87171;
+        }
+
+        .trade-plan-value.tp {
+            color: #4ade80;
+        }
+
+        .trade-plan-value.info {
+            color: var(--purple);
+        }
+
+        .trade-plan-note {
+            margin: 12px 0;
+            color: var(--muted);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .primary-btn {
+            width: 100%;
+            min-height: 43px;
+            border: 0;
+            border-radius: 11px;
+            background: #2563eb;
+            color: white;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .paper-balance-box {
+            margin-bottom: 13px;
+            padding: 13px;
+            border: 1px solid #28415d;
+            border-radius: 11px;
+            background: #102238;
+        }
+
+        .paper-balance-label {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .paper-balance-value {
+            margin-top: 5px;
+            color: var(--green);
+            font-size: 21px;
+            font-weight: 800;
+        }
+
+        .paper-form-item input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #334155;
+            border-radius: 9px;
+            outline: none;
+            background: #111f31;
+            color: var(--text);
+        }
+
+        .paper-trade-preview {
+            margin-bottom: 13px;
             padding: 12px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: #111f31;
+            color: #cbd5e1;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .paper-preview-title {
+            margin-bottom: 6px;
+            color: white;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .paper-preview-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 4px 0;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .paper-preview-row:last-child {
+            border-bottom: 0;
+        }
+
+        .paper-preview-label {
+            color: var(--muted);
+        }
+
+        .paper-preview-value {
+            text-align: right;
+            font-weight: 700;
+        }
+
+        .paper-open-position {
+            margin-top: 14px;
+            padding: 13px;
+            border: 1px solid #334155;
+            border-radius: 11px;
+            background: #111f31;
+        }
+
+        .paper-position-long {
+            border-color: #166534;
+        }
+
+        .paper-position-short {
+            border-color: #991b1b;
+        }
+
+        .paper-position-title,
+        .paper-history-title {
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .paper-position-details {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 7px;
+            color: #cbd5e1;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .paper-pnl-positive {
+            color: var(--green) !important;
+            font-weight: 800;
+        }
+
+        .paper-pnl-negative {
+            color: #f87171 !important;
+            font-weight: 800;
+        }
+
+        .paper-history {
+            margin-top: 14px;
+        }
+
+        .paper-history-item {
+            margin-bottom: 8px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #0d1726;
+            color: #cbd5e1;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .paper-history-win {
+            border-color: #166534;
+        }
+
+        .paper-history-loss {
+            border-color: #991b1b;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setting-row:last-child {
+            border-bottom: 0;
+        }
+
+        .setting-row label {
             color: var(--muted);
             font-size: 12px;
-            line-height: 1.5;
+        }
+
+        .setting-row input {
+            width: 90px;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel2);
+            color: var(--text);
         }
 
         .bottom-nav {
@@ -292,457 +709,88 @@
             left: 0;
             display: flex;
             justify-content: center;
-            padding: 9px 12px;
-            background: rgba(7, 17, 31, 0.94);
+            padding: 8px 10px;
             border-top: 1px solid var(--border);
+            background: rgba(7, 17, 31, .95);
             backdrop-filter: blur(14px);
         }
 
         .bottom-nav-inner {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
+            gap: 5px;
             width: min(100%, 760px);
         }
 
         .nav-btn {
             min-width: 0;
-            padding: 9px 4px;
+            padding: 8px 3px;
             border: 1px solid transparent;
-            border-radius: 11px;
+            border-radius: 10px;
             background: transparent;
             color: var(--muted);
             font-size: 10px;
             text-align: center;
         }
 
-        .nav-btn .nav-icon {
+        .nav-icon {
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             font-size: 17px;
         }
 
         .nav-btn.active {
-            border-color: rgba(59, 156, 255, 0.25);
-            background: rgba(59, 156, 255, 0.12);
+            border-color: rgba(59, 156, 255, .25);
+            background: rgba(59, 156, 255, .12);
             color: var(--blue);
         }
 
-        .view {
-            display: none;
-        }
-
-        .view.active {
-            display: block;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            min-height: 23px;
-            padding: 0 9px;
-            border-radius: 999px;
-            background: rgba(244, 201, 93, 0.12);
-            color: var(--yellow);
-            font-size: 10px;
-            font-weight: 700;
-        }
-
         @media (max-width: 420px) {
-            .app {
-                padding-right: 11px;
-                padding-left: 11px;
-            }
-
             .hero h2 {
-                font-size: 22px;
+                font-size: 21px;
             }
 
-            .stat {
-                padding: 13px 9px;
+            .trade-plan-grid,
+            .paper-form-grid,
+            .paper-position-details {
+                grid-template-columns: 1fr;
             }
 
             .stat-value {
                 font-size: 18px;
             }
-
-            .bottom-nav {
-                padding-right: 7px;
-                padding-left: 7px;
-            }
         }
-        /* =========================================
-   AŞAMA 5 — İŞLEM PLANI
-========================================= */
-
-.trade-plan-panel {
-    margin-top: 16px;
-    padding: 16px;
-    border: 1px solid #26364b;
-    border-radius: 16px;
-    background: #0d1726;
-}
-
-.trade-plan-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.trade-plan-title {
-    color: #f1f5f9;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.trade-plan-symbol {
-    margin-top: 4px;
-    color: #8da2bd;
-    font-size: 13px;
-}
-
-.trade-plan-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 14px;
-}
-
-.trade-plan-item {
-    padding: 11px;
-    border: 1px solid #26364b;
-    border-radius: 12px;
-    background: #111f31;
-}
-
-.trade-plan-label {
-    color: #8da2bd;
-    font-size: 11px;
-    margin-bottom: 5px;
-}
-
-.trade-plan-value {
-    color: #f8fafc;
-    font-size: 14px;
-    font-weight: 700;
-    word-break: break-word;
-}
-
-.trade-plan-value.entry {
-    color: #60a5fa;
-}
-
-.trade-plan-value.stop {
-    color: #f87171;
-}
-
-.trade-plan-value.tp {
-    color: #4ade80;
-}
-
-.trade-plan-value.info {
-    color: #c4b5fd;
-}
-
-.trade-plan-note {
-    color: #94a3b8;
-    font-size: 12px;
-    line-height: 1.5;
-    margin: 12px 0;
-}
-
-.secondary-btn {
-    border: 1px solid #334155;
-    background: #172337;
-    color: #cbd5e1;
-    border-radius: 9px;
-    padding: 8px 11px;
-    cursor: pointer;
-    font-size: 12px;
-}
-
-.secondary-btn:hover {
-    background: #22334b;
-}
-
-.primary-btn {
-    width: 100%;
-    border: 0;
-    border-radius: 11px;
-    padding: 12px;
-    background: #2563eb;
-    color: white;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.primary-btn:hover {
-    background: #1d4ed8;
-}
-
-.primary-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-@media (max-width: 420px) {
-    .trade-plan-grid {
-        grid-template-columns: 1fr;
-    }
-}
-        .plan-btn {
-    border: 1px solid #3b82f6;
-    background: #172b49;
-    color: #93c5fd;
-    border-radius: 8px;
-    padding: 7px 9px;
-    font-size: 11px;
-    cursor: pointer;
-}
-
-.plan-btn:hover {
-    background: #1e3a5f;
-}
-        /* =========================================
-   AŞAMA 5B — PAPER TRADING STİLLERİ
-========================================= */
-
-.paper-trading-panel {
-    margin-top: 16px;
-    padding: 16px;
-    border: 1px solid #26364b;
-    border-radius: 16px;
-    background: #0b1523;
-}
-
-.paper-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.paper-title {
-    color: #f8fafc;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.paper-symbol {
-    margin-top: 4px;
-    color: #8da2bd;
-    font-size: 13px;
-}
-
-.paper-balance-box {
-    margin-bottom: 14px;
-    padding: 14px;
-    border: 1px solid #28415d;
-    border-radius: 12px;
-    background: #102238;
-}
-
-.paper-balance-label {
-    color: #8da2bd;
-    font-size: 12px;
-    margin-bottom: 5px;
-}
-
-.paper-balance-value {
-    color: #4ade80;
-    font-size: 22px;
-    font-weight: 800;
-}
-
-.paper-form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 14px;
-}
-
-.paper-form-item {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.paper-form-item label {
-    color: #94a3b8;
-    font-size: 12px;
-}
-
-.paper-form-item input {
-    width: 100%;
-    box-sizing: border-box;
-    border: 1px solid #334155;
-    border-radius: 9px;
-    background: #111f31;
-    color: #f8fafc;
-    padding: 10px;
-    outline: none;
-}
-
-.paper-form-item input:focus {
-    border-color: #3b82f6;
-}
-
-.paper-trade-preview {
-    margin-bottom: 14px;
-    padding: 12px;
-    border: 1px solid #26364b;
-    border-radius: 12px;
-    background: #111f31;
-    color: #cbd5e1;
-    font-size: 12px;
-    line-height: 1.7;
-}
-
-.paper-preview-title {
-    color: #f8fafc;
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 7px;
-}
-
-.paper-preview-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    border-bottom: 1px solid #1e293b;
-    padding: 5px 0;
-}
-
-.paper-preview-row:last-child {
-    border-bottom: 0;
-}
-
-.paper-preview-label {
-    color: #94a3b8;
-}
-
-.paper-preview-value {
-    color: #e2e8f0;
-    font-weight: 700;
-    text-align: right;
-}
-
-.paper-open-position {
-    margin-top: 16px;
-    padding: 14px;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    background: #111f31;
-}
-
-.paper-position-long {
-    border-color: #166534;
-}
-
-.paper-position-short {
-    border-color: #991b1b;
-}
-
-.paper-position-title {
-    color: #f8fafc;
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 8px;
-}
-
-.paper-position-details {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    color: #cbd5e1;
-    font-size: 12px;
-    line-height: 1.5;
-}
-
-.paper-pnl-positive {
-    color: #4ade80 !important;
-    font-weight: 800;
-}
-
-.paper-pnl-negative {
-    color: #f87171 !important;
-    font-weight: 800;
-}
-
-.paper-history {
-    margin-top: 16px;
-}
-
-.paper-history-title {
-    color: #f8fafc;
-    font-size: 16px;
-    font-weight: 700;
-    margin-bottom: 10px;
-}
-
-.paper-history-item {
-    margin-bottom: 8px;
-    padding: 11px;
-    border: 1px solid #26364b;
-    border-radius: 10px;
-    background: #0d1726;
-    color: #cbd5e1;
-    font-size: 12px;
-    line-height: 1.6;
-}
-
-.paper-history-win {
-    border-color: #166534;
-}
-
-.paper-history-loss {
-    border-color: #991b1b;
-}
-
-@media (max-width: 420px) {
-    .paper-form-grid,
-    .paper-position-details {
-        grid-template-columns: 1fr;
-    }
-}
     </style>
 </head>
 
 <body>
-
     <main class="app">
 
         <header class="header">
             <div class="brand">
                 <div class="brand-icon">₿</div>
-
                 <div>
-                    <h1>Futures Signal Scanner</h1>
+                    <h1>Futures Signal Scanner V2</h1>
                     <p>Binance Futures · Paper Trading</p>
                 </div>
             </div>
 
             <div class="connection">
                 <span id="connectionDot" class="connection-dot"></span>
-                <span id="connectionText">Hazırlanıyor</span>
+                <span id="connectionText">Hazır</span>
             </div>
         </header>
 
-        <!-- PİYASALAR -->
+        <!-- ================= PİYASALAR ================= -->
+
         <section id="viewMarkets" class="view active">
 
             <div class="hero">
-                <div class="hero-label">Yeni nesil analiz paneli</div>
-
-                <h2>Futures piyasasını daha kontrollü takip et.</h2>
-
+                <div class="hero-label">Canlı analiz paneli</div>
+                <h2>Futures piyasasını kontrollü takip et.</h2>
                 <p>
-                    Canlı piyasa verileri, teknik analiz ve sanal işlem
-                    yönetimi tek bir mobil uyumlu panelde.
+                    Binance Futures canlı verileri, teknik analiz,
+                    işlem planı ve sanal işlem yönetimi.
                 </p>
             </div>
 
@@ -769,18 +817,12 @@
                     <span class="badge">PAPER MODE</span>
                 </div>
 
-                <div class="empty">
-                    Binance bağlantısı ve ilk tarama bu alanda görünecek.
-                    <br>
-                    Temel proje başarıyla oluşturuldu.
-                </div>
-
-                <div class="actions" style="margin-top: 14px;">
-                    <button id="scanButton" class="btn btn-primary">
-                        Taramayı başlat
+                <div class="actions">
+                    <button id="scanButton" class="btn btn-primary" type="button">
+                        Piyasaları Tara
                     </button>
 
-                    <button id="clearButton" class="btn">
+                    <button id="clearButton" class="btn" type="button">
                         Temizle
                     </button>
                 </div>
@@ -793,7 +835,7 @@
             <div class="section">
                 <div class="section-title">
                     <h3>Sinyaller</h3>
-                    <span>Henüz veri yok</span>
+                    <span id="signalSummary">Henüz veri yok</span>
                 </div>
 
                 <div id="signalsEmpty" class="empty">
@@ -802,142 +844,171 @@
                 </div>
 
                 <div id="signalsList"></div>
-                <div id="paperTradingStatus"></div>
             </div>
 
-            <div id="tradePlanPanel" class="trade-plan-panel" style="display: none;">
-    <div class="trade-plan-header">
-        <div>
-            <div class="trade-plan-title">İşlem Planı</div>
-            <div id="tradePlanSymbol" class="trade-plan-symbol">-</div>
-        </div>
+            <!-- İŞLEM PLANI -->
+            <div id="tradePlanPanel" class="trade-plan-panel" style="display:none;">
 
-        <!-- =========================================
-     AŞAMA 5B — PAPER TRADING PANELİ
-========================================= -->
+                <div class="trade-plan-header">
+                    <div>
+                        <div class="trade-plan-title">İşlem Planı</div>
+                        <div id="tradePlanSymbol" class="trade-plan-symbol">-</div>
+                    </div>
 
-<div id="paperTradingPanel" class="paper-trading-panel" style="display: none;">
+                    <button id="closeTradePlan" class="secondary-btn" type="button">
+                        Kapat
+                    </button>
+                </div>
 
-    <div class="paper-header">
-        <div>
-            <div class="paper-title">Sanal İşlem</div>
-            <div id="paperSymbol" class="paper-symbol">-</div>
-        </div>
+                <div id="tradePlanContent"></div>
 
-        <button
-            id="closePaperTrading"
-            class="secondary-btn"
-            type="button">
-            Kapat
-        </button>
-    </div>
+                <button id="paperTradeButton" class="primary-btn" type="button">
+                    Sanal İşlem Aç
+                </button>
+            </div>
 
-    <div class="paper-balance-box">
-        <div class="paper-balance-label">Sanal bakiye</div>
-        <div id="paperBalanceValue" class="paper-balance-value">
-            1,000.00 USDT
-        </div>
-    </div>
+            <!-- PAPER TRADING -->
+            <div id="paperTradingPanel" class="paper-trading-panel" style="display:none;">
 
-    <div class="paper-form-grid">
+                <div class="paper-header">
+                    <div>
+                        <div class="paper-title">Sanal İşlem</div>
+                        <div id="paperSymbol" class="paper-symbol">-</div>
+                    </div>
 
-        <div class="paper-form-item">
-            <label for="paperRiskPercent">Risk yüzdesi</label>
-            <input
-                id="paperRiskPercent"
-                type="number"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value="1">
-        </div>
+                    <button id="closePaperTrading" class="secondary-btn" type="button">
+                        Kapat
+                    </button>
+                </div>
 
-        <div class="paper-form-item">
-            <label for="paperLeverage">Kaldıraç</label>
-            <input
-                id="paperLeverage"
-                type="number"
-                min="1"
-                max="50"
-                step="1"
-                value="3">
-        </div>
+                <div class="paper-balance-box">
+                    <div class="paper-balance-label">Sanal bakiye</div>
+                    <div id="paperBalanceValue" class="paper-balance-value">
+                        1,000.00 USDT
+                    </div>
+                </div>
 
-    </div>
+                <div class="paper-form-grid">
+                    <div class="paper-form-item">
+                        <label for="paperRiskPercent">Risk yüzdesi</label>
+                        <input
+                            id="paperRiskPercent"
+                            type="number"
+                            min="0.1"
+                            max="10"
+                            step="0.1"
+                            value="1">
+                    </div>
 
-    <div id="paperTradePreview" class="paper-trade-preview"></div>
+                    <div class="paper-form-item">
+                        <label for="paperLeverage">Kaldıraç</label>
+                        <input
+                            id="paperLeverage"
+                            type="number"
+                            min="1"
+                            max="50"
+                            step="1"
+                            value="3">
+                    </div>
+                </div>
 
-    <button
-        id="confirmPaperTrade"
-        class="primary-btn"
-        type="button">
-        Sanal Pozisyon Aç
-    </button>
+                <div id="paperTradePreview" class="paper-trade-preview">
+                    Sanal işlem planı burada görünecek.
+                </div>
 
-</div>
-
-        <button id="closeTradePlan" class="secondary-btn" type="button">
-            Kapat
-        </button>
-    </div>
-
-    <div id="tradePlanContent"></div>
-
-    <button id="paperTradeButton" class="primary-btn" type="button">
-        Sanal İşlem Aç
-    </button>
-</div>
+                <button id="confirmPaperTrade" class="primary-btn" type="button">
+                    Sanal Pozisyon Aç
+                </button>
+            </div>
 
         </section>
 
-        <!-- İŞLEM -->
-        <section id="viewTrade" class="view">
+        <!-- ================= İŞLEM ================= -->
 
+        <section id="viewTrade" class="view">
             <div class="section">
                 <div class="section-title">
                     <h3>İşlem planı</h3>
                     <span>Paper Trading</span>
                 </div>
 
-                <div class="empty">
-                    Bir sinyal seçildiğinde giriş, stop-loss ve hedefler
-                    burada gösterilecek.
+                <div id="tradeViewContent" class="empty">
+                    Bir sinyalin işlem planını açtığında ayrıntılar burada
+                    gösterilecek.
                 </div>
             </div>
-
         </section>
 
-        <!-- POZİSYON -->
-        <section id="viewPosition" class="view">
+        <!-- ================= POZİSYON ================= -->
 
+        <section id="viewPosition" class="view">
             <div class="section">
                 <div class="section-title">
                     <h3>Açık pozisyon</h3>
                     <span>Sanal hesap</span>
                 </div>
 
-                <div class="empty">
-                    Şu anda açık paper pozisyon bulunmuyor.
+                <div id="positionViewContent" class="empty">
+                    Şu anda açık sanal pozisyon bulunmuyor.
                 </div>
             </div>
 
+            <div class="section">
+                <div class="section-title">
+                    <h3>İşlem geçmişi</h3>
+                    <span>Paper Trading</span>
+                </div>
+
+                <div id="historyViewContent" class="empty">
+                    Henüz tamamlanmış sanal işlem yok.
+                </div>
+            </div>
         </section>
 
-        <!-- AYARLAR -->
-        <section id="viewSettings" class="view">
+        <!-- ================= AYARLAR ================= -->
 
+        <section id="viewSettings" class="view">
             <div class="section">
                 <div class="section-title">
                     <h3>Ayarlar</h3>
                     <span>Uygulama</span>
                 </div>
 
-                <div class="empty">
-                    Tarama, risk ve otomasyon ayarları ilerleyen
-                    aşamalarda burada yer alacak.
+                <div class="setting-row">
+                    <label for="minScoreInput">Minimum sinyal skoru</label>
+                    <input
+                        id="minScoreInput"
+                        type="number"
+                        min="50"
+                        max="95"
+                        step="1"
+                        value="62">
+                </div>
+
+                <div class="setting-row">
+                    <label>Başlangıç sanal bakiyesi</label>
+                    <span style="color:var(--muted);font-size:12px;">
+                        1,000 USDT
+                    </span>
+                </div>
+
+                <div class="setting-row">
+                    <label>Gerçek emir</label>
+                    <span style="color:var(--yellow);font-size:12px;">
+                        Kapalı
+                    </span>
+                </div>
+
+                <div class="actions">
+                    <button id="saveSettingsButton" class="btn btn-primary" type="button">
+                        Ayarları Kaydet
+                    </button>
+
+                    <button id="resetPaperButton" class="btn btn-danger" type="button">
+                        Sanal Hesabı Sıfırla
+                    </button>
                 </div>
             </div>
-
         </section>
 
     </main>
@@ -945,22 +1016,22 @@
     <nav class="bottom-nav">
         <div class="bottom-nav-inner">
 
-            <button class="nav-btn active" data-view="markets">
+            <button class="nav-btn active" data-view="markets" type="button">
                 <span class="nav-icon">▦</span>
                 Piyasalar
             </button>
 
-            <button class="nav-btn" data-view="trade">
+            <button class="nav-btn" data-view="trade" type="button">
                 <span class="nav-icon">↗</span>
                 İşlem
             </button>
 
-            <button class="nav-btn" data-view="position">
+            <button class="nav-btn" data-view="position" type="button">
                 <span class="nav-icon">◈</span>
                 Pozisyon
             </button>
 
-            <button class="nav-btn" data-view="settings">
+            <button class="nav-btn" data-view="settings" type="button">
                 <span class="nav-icon">⚙</span>
                 Ayarlar
             </button>
@@ -968,7 +1039,6 @@
         </div>
     </nav>
 
-<script src="app.js?v=20260913"></script>
-
+    <script src="app.js?v=20260913"></script>
 </body>
 </html>
